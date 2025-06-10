@@ -11,7 +11,7 @@ serde = {version = "1.0.219", features = ["derive"]}
 rand = "0.9.1"
 
 # Reth dependencies
-reth-node-builder = { git = "https://github.com/paradigmxyz/reth", branch = "main", package = "reth-node-builder" }
+reth-node-builder = { git = "https://github.com/paradigmxyz/reth", branch = "main", package = "reth-node-builder", features = ["test-utils"] }
 reth-tasks = { git = "https://github.com/paradigmxyz/reth", branch = "main", package = "reth-tasks" }
 reth-chainspec = { git = "https://github.com/paradigmxyz/reth", branch = "main", package = "reth-chainspec" }
 reth-ethereum-primitives = { git = "https://github.com/paradigmxyz/reth", branch = "main", package = "reth-ethereum-primitives" }
