@@ -200,22 +200,43 @@ pub async fn run_consensus_handler(
                 info!(%height, %round, "Processing synced value");
 
                 if let Some(value) = crate::app::decode_value(value_bytes) {
-                    let proposed_value = malachitebft_app_channel::app::types::ProposedValue {
-                        height,
-                        round,
-                        valid_round: Round::Nil,
-                        proposer,
-                        value,
-                        validity: Validity::Valid,
-                    };
+                    // First validate the block through the engine
+                    match state.validate_synced_block(&value.block).await {
+                        Ok(true) => {
+                            // Block is valid, create and store the proposal
+                            let proposed_value =
+                                malachitebft_app_channel::app::types::ProposedValue {
+                                    height,
+                                    round,
+                                    valid_round: Round::Nil,
+                                    proposer,
+                                    value,
+                                    validity: Validity::Valid,
+                                };
 
-                    // Store the synced value
-                    if let Err(e) = state.store_synced_proposal(proposed_value.clone()).await {
-                        error!(%e, "Failed to store synced proposal");
-                    }
+                            // Store the synced value
+                            if let Err(e) =
+                                state.store_synced_proposal(proposed_value.clone()).await
+                            {
+                                error!(%e, "Failed to store synced proposal");
+                            }
 
-                    if reply.send(Some(proposed_value)).is_err() {
-                        error!("Failed to send ProcessSyncedValue reply");
+                            if reply.send(Some(proposed_value)).is_err() {
+                                error!("Failed to send ProcessSyncedValue reply");
+                            }
+                        }
+                        Ok(false) => {
+                            info!("Synced value failed validation");
+                            if reply.send(None).is_err() {
+                                error!("Failed to send ProcessSyncedValue reply");
+                            }
+                        }
+                        Err(e) => {
+                            error!(%e, "Failed to validate synced value");
+                            if reply.send(None).is_err() {
+                                error!("Failed to send ProcessSyncedValue reply");
+                            }
+                        }
                     }
                 } else if reply.send(None).is_err() {
                     error!("Failed to send ProcessSyncedValue reply");
