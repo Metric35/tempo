@@ -5,7 +5,7 @@ use reth_malachite::app::{Config, Genesis, State, ValidatorInfo};
 use reth_malachite::cli::{Cli, MalachiteChainSpecParser};
 use reth_malachite::consensus::{start_consensus_engine, EngineConfig};
 use reth_malachite::context::MalachiteContext;
-use reth_malachite::store::Store;
+use reth_malachite::store::{tables::Tables, Store};
 use reth_malachite::types::Address;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -36,14 +36,37 @@ fn main() -> eyre::Result<()> {
         let NodeHandle {
             node,
             node_exit_future,
-        } = builder.node(reth_node).launch().await?;
+        } = builder
+            .node(reth_node)
+            .apply(|mut ctx| {
+                // Access the database before launch to create tables
+                let db = ctx.db_mut();
+                if let Err(e) = db.create_tables_for::<Tables>() {
+                    tracing::error!("Failed to create consensus tables: {:?}", e);
+                } else {
+                    tracing::info!("Created consensus tables successfully");
+                }
+                ctx
+            })
+            .launch()
+            .await?;
 
         // Get the beacon engine handle
         let app_handle = node.add_ons_handle.beacon_engine_handle.clone();
 
         // Get the provider from the node to create the store
         let provider = node.provider.clone();
+
         let store = Store::new(Arc::new(provider));
+
+        // Verify that all consensus tables exist
+        match store.verify_tables().await {
+            Ok(()) => tracing::info!("All consensus tables verified successfully"),
+            Err(e) => {
+                tracing::error!("Failed to verify consensus tables: {:?}", e);
+                return Err(e);
+            }
+        }
 
         // Now create the application state with the engine handle and store
         let state = State::new(
