@@ -1,0 +1,16 @@
+# Example local Cargo configuration for Tempo developers.
+#
+# Copy this file to `.cargo/config.toml` and adjust values to match your setup.
+# This file is intentionally not used by default.
+
+[build]
+# Uncomment to override the default target directory for builds.
+# target-dir = "/tmp/tempo-target"
+
+[target.'cfg(unix)']
+# Example: use a specific linker on Unix systems.
+# linker = "clang"
+
+[env]
+# Example: enable more verbose logging when running tests locally.
+# RUST_LOG = "tempo=debug,info"
